@@ -1,0 +1,11 @@
+# simple gitignore for dotnet webapi project
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+Properties/launchSettings.json
+appsettings.Development.json
+appsettings.json
