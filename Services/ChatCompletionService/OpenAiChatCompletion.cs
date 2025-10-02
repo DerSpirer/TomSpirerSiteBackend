@@ -1,13 +1,13 @@
+using TomSpirerSiteBackend.Models;
+using TomSpirerSiteBackend.Models.Config;
+using TomSpirerSiteBackend.Utils;
+
 namespace TomSpirerSiteBackend.Services.ChatCompletionService;
 
 using System.Net.Http.Headers;
 using System.Text;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
-using TomSpirerSiteBackend.Models;
-using TomSpirerSiteBackend.Models.DTOs;
-using TomSpirerSiteBackend.Models.Config;
-using TomSpirerSiteBackend.Utils;
 
 public class OpenAiChatCompletion : IChatCompletionService
 {
@@ -70,8 +70,9 @@ public class OpenAiChatCompletion : IChatCompletionService
 
     private class OpenAiChatCompletionRequest
     {
-        public string model { get; set; } = "gpt-4o-mini";
+        public string model { get; set; } = "gpt-4o";
         public List<Message> messages { get; set; }
+        public float temperature { get; set; } = 0.01f;
     }
 
     private class OpenAiChatCompletionResponse
