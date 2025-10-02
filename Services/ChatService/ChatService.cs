@@ -91,11 +91,19 @@ If the user doesn't provide a specific question in the first message, introduce 
         _chatCompletionService = chatCompletionService;
     }
 
-    public async Task<ServiceResult<Message>> GenerateResponse(GenerateResponseRequest request)
+    public async Task<ServiceResult<Message>> CreateResponse(GenerateResponseRequest request)
     {
         return await _chatCompletionService.GenerateResponse([
             new Message { role = Message.Role.system, content = _systemMessage },
             ..request.messages,
         ]);
+    }
+
+    public async IAsyncEnumerable<string> CreateResponseStream(GenerateResponseRequest request, CancellationToken cancellationToken)
+    {
+        await foreach (string chunk in _chatCompletionService.CreateResponseStream(request.messages, cancellationToken))
+        {
+            yield return chunk;
+        }
     }
 }
