@@ -104,7 +104,7 @@ public class OpenAiChatCompletion : IChatCompletionService
         {
             cancellationToken.ThrowIfCancellationRequested();
             
-            string? line = await reader.ReadLineAsync();
+            string? line = await reader.ReadLineAsync(cancellationToken);
             Console.WriteLine(line);
             if (string.IsNullOrWhiteSpace(line) || !line.StartsWith("data: "))
                 continue;

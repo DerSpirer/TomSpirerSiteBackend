@@ -101,7 +101,10 @@ If the user doesn't provide a specific question in the first message, introduce 
 
     public async IAsyncEnumerable<string> CreateResponseStream(GenerateResponseRequest request, CancellationToken cancellationToken)
     {
-        await foreach (string chunk in _chatCompletionService.CreateResponseStream(request.messages, cancellationToken))
+        await foreach (string chunk in _chatCompletionService.CreateResponseStream([
+                           new Message { role = Message.Role.system, content = _systemMessage },
+                            ..request.messages
+                       ], cancellationToken))
         {
             yield return chunk;
         }
