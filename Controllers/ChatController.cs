@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
 using TomSpirerSiteBackend.Models.DTOs;
 using TomSpirerSiteBackend.Services.ChatService;
 
@@ -28,8 +29,8 @@ public class ChatController : ControllerBase
         {
             await foreach (string chunk in _chatService.CreateResponseStream(request, cancellationToken))
             {
-                string formattedChunk = $"data: {chunk}\n\n";
-                byte[] chunkBytes = Encoding.UTF8.GetBytes(formattedChunk);
+                string chunkJson = JsonConvert.SerializeObject(new { delta = chunk });
+                byte[] chunkBytes = Encoding.UTF8.GetBytes($"data: {chunkJson}\n\n");
                 await Response.Body.WriteAsync(chunkBytes, 0, chunkBytes.Length, cancellationToken);
                 await Response.Body.FlushAsync(cancellationToken);
             }
