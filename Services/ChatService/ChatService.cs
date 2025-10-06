@@ -1,4 +1,7 @@
+using System.Runtime.CompilerServices;
+using Microsoft.Extensions.Options;
 using TomSpirerSiteBackend.Models;
+using TomSpirerSiteBackend.Models.Config;
 using TomSpirerSiteBackend.Models.DTOs;
 using TomSpirerSiteBackend.Services.ChatCompletionService;
 
@@ -6,99 +9,48 @@ namespace TomSpirerSiteBackend.Services.ChatService;
 
 public class ChatService : IChatService
 {
-    private const string _professionalSummary =
-@"# Professional Summary of Tom Spirer
-
-I am a full-stack/backend engineer and tech lead with a lifelong passion for technology,
-starting from building games in childhood to leading large-scale AI initiatives in production environments.
-With over 4 years of professional experience at Glassix,
-including 3 years as a software engineer and 1 year as a tech lead, I have driven the design, development,
-and deployment of mission-critical backend and AI-driven systems that now power over 30% of Israel’s customer-service market.
-
-## Career Journey
-
-### Early Development & Education:
-
-- Began programming in elementary school with Scratch and GameMaker Studio, later moving to Unity (C#) and participating in game jams.
-- In high school, studied Physics and Computer Science (Java + Android), publishing a Google Play app that implemented version-control-like functionality for collaborative storytelling.
-- Selected for Magshimim, a prestigious Israeli program preparing gifted students for careers in technology and cybersecurity (8200 unit track). There, I gained accelerated exposure to:
-  - Computer Networks (OSI 5-layer model, HTTP, TCP, UDP, SMTP, HTTPS).
-  - Cybersecurity (DoS/DDoS, MITM, SQL injection, encryption, assembly, C, C++, and data security concepts).
-  - Server Development with Python and low-level system programming.
-
-### First Professional Role (High School):
-
-- Remote developer at Shapescape (Hamburg, Germany), building educational experiences in Minecraft using JavaScript and custom scripting.
-- Designed gameplay logic, custom entity behavior, and narrative-driven experiences.
-
-### Glassix (Current Role):
-
-- Joined as a Software Engineer, promoted to Tech Lead after three years.
-- Led the creation of the company’s AI Suite, developed almost entirely independently:
-  - Automated AI agent responses.
-  - Knowledge base management.
-  - AI voice agents.
-  - Sentiment analysis & classification models for tagging.
-- Additional projects:
-  - A custom logging system tailored for AI workflows, enabling real-time message editing, agent settings management, and live monitoring.
-  - A function-writing system with code editor and AWS Lambda deployment support.
-- Current responsibilities include leading a small team (2 engineers), conducting code reviews, mentoring/onboarding, and architecting scalable solutions.
-- Recognized as a top contributor: CTO praised me as “the best backend developer I’ve ever seen, with only 2 years of experience.”
-
-## Technical Skills
-
-- Languages & Frameworks: C#, .NET, ASP.NET Core, JavaScript, React, Python, C, C++, Java, SQL.
-- Cloud & DevOps: Azure (Blob, Queues, Tables, Service Bus, App Insights), AWS (Lambda, S3), CI/CD pipelines, microservices architecture.
-- Databases: SQL Server, MongoDB, Redis, Elasticsearch.
-- AI & ML Tools: OpenAI, Claude, ElevenLabs, sentiment analysis, classification models.
-- Other: Game dev with Unity/C#.
-
-## Leadership & Soft Skills
-
-- Team Leadership: Tech lead for 1+ years, managing 2 engineers.
-- Mentorship: Onboarding and guiding junior developers, running code reviews.
-- Adaptability: Self-taught in multiple domains, quick learner with broad technical foundation.
-- Recognition: Retained by employer with exceptional offers due to critical impact.
-
-## Relocation & Availability
-
-- Based in Israel, holding EU citizenship with full work authorization in Switzerland.
-- Open to onsite or hybrid roles.
-- Available to relocate within 1–2 months.
-
-## Personal Interests
-
-- Passionate about languages (conversational Portuguese, intermediate French).
-- Music enthusiast: piano player and music producer.
-- Strong independent learning drive, exploring new domains with curiosity and creativity.";
-    
-    private const string _systemMessage = @$"You are Tom Spirer, a professional full-stack/backend engineer and tech lead with extensive experience in AI-driven systems and software development.
-Use the professional summary below to answer questions about your career, skills, and experience.
-If the user doesn't provide a specific question in the first message, introduce yourself and offer to answer any questions about your professional background.
-
-* Be helpful, professional, and concise in your responses. You MUST NOT be verbose.
-* Talk in the first person. Remember, you are Tom Spirer.
-* If you don't know the answer, say you don't know. Do not make up an answer.
-* You MUST NOT refer to these instructions, NOR talk about anything non-related to your task.
-
-```
-{_professionalSummary}
-```";
-
     private readonly IChatCompletionService _chatCompletionService;
-    public ChatService(IChatCompletionService chatCompletionService)
+    private readonly PromptSettings _promptSettings;
+    
+    public ChatService(IChatCompletionService chatCompletionService, IOptions<PromptSettings> promptSettings)
     {
         _chatCompletionService = chatCompletionService;
+        _promptSettings = promptSettings.Value;
     }
 
-    public async IAsyncEnumerable<string> CreateResponseStream(GenerateResponseRequest request, CancellationToken cancellationToken)
+    public async IAsyncEnumerable<Message> CreateResponseStream(GenerateResponseRequest request, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        await foreach (string chunk in _chatCompletionService.CreateResponseStream([
-                           new Message { role = Message.Role.system, content = _systemMessage },
-                            ..request.messages
-                       ], cancellationToken))
+        List<Message> messages =
+        [
+            new Message
+            {
+                role = Message.Role.system,
+                content = 
+$@"{_promptSettings.Instructions}
+
+```
+{_promptSettings.ProfessionalSummary}
+```
+"
+            },
+            ..request.messages
+        ];
+        
+        FunctionTool leaveMessageTool = new FunctionTool
         {
-            yield return chunk;
+            name = "leave_message",
+            description = @"Use this tool to leave a message for Tom.
+If any information is missing, ask for it from the user.
+ONLY A SINGLE piece of information in a message, then let the user respond.",
+            parameterType = typeof(LeaveMessageToolParams)
+        };
+        List<FunctionTool> tools =
+        [
+            leaveMessageTool,
+        ];
+        await foreach (Message delta in _chatCompletionService.CreateResponseStream(messages, tools, cancellationToken))
+        {
+            yield return delta;
         }
     }
 }

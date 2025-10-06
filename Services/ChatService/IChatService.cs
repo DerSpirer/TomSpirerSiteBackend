@@ -5,5 +5,5 @@ namespace TomSpirerSiteBackend.Services.ChatService;
 
 public interface IChatService
 {
-    IAsyncEnumerable<string> CreateResponseStream(GenerateResponseRequest request, CancellationToken cancellationToken);
+    IAsyncEnumerable<Message> CreateResponseStream(GenerateResponseRequest request, CancellationToken cancellationToken);
 }

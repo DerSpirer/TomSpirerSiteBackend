@@ -11,6 +11,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="9.0.9" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.3" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="Newtonsoft.Json.Schema" Version="4.0.1" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.8.8" />
   </ItemGroup>
 
