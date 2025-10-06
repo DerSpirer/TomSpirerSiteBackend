@@ -11,9 +11,9 @@ builder.Services.AddApplicationInsightsTelemetry();
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("AllowGitHub", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.WithOrigins("https://derspirer.github.io", "http://localhost:5173")
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
@@ -44,7 +44,7 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference();
 }
 
-app.UseCors("AllowAll");
+app.UseCors("AllowGitHub");
 app.UseHttpsRedirection();
 app.MapControllers();
 

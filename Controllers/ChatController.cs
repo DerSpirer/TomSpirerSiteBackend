@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using TomSpirerSiteBackend.Models;
@@ -8,6 +9,7 @@ using TomSpirerSiteBackend.Services.EmailService;
 
 namespace TomSpirerSiteBackend.Controllers;
 
+[EnableCors]
 [ApiController]
 [Route("api/[controller]/[action]")]
 public class ChatController : ControllerBase
