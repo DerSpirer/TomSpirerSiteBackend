@@ -1,6 +1,7 @@
 using Newtonsoft.Json.Schema;
 using Scalar.AspNetCore;
 using TomSpirerSiteBackend.Models.Config;
+using TomSpirerSiteBackend.Services.BlobService;
 using TomSpirerSiteBackend.Services.ChatCompletionService;
 using TomSpirerSiteBackend.Services.ChatService;
 using TomSpirerSiteBackend.Services.EmailService;
@@ -30,10 +31,12 @@ builder.Services.AddOpenApi();
 builder.Services.Configure<OpenAiSettings>(builder.Configuration.GetSection("OpenAi"));
 builder.Services.Configure<PromptSettings>(builder.Configuration.GetSection("Prompt"));
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
+builder.Services.Configure<BlobStorageSettings>(builder.Configuration.GetSection("BlobStorage"));
 builder.Services.AddHttpClient<IChatCompletionService, OpenAiChatCompletion>();
 
 builder.Services.AddSingleton<IChatCompletionService, OpenAiChatCompletion>();
 builder.Services.AddSingleton<IEmailService, GmailService>();
+builder.Services.AddSingleton<IBlobService, AzureBlobService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 
 var app = builder.Build();
