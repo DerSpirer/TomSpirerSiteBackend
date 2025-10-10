@@ -1,10 +1,13 @@
 using Newtonsoft.Json.Schema;
 using Scalar.AspNetCore;
+using TomSpirerSiteBackend.Models;
 using TomSpirerSiteBackend.Models.Config;
 using TomSpirerSiteBackend.Services.BlobService;
 using TomSpirerSiteBackend.Services.ChatCompletionService;
 using TomSpirerSiteBackend.Services.ChatService;
 using TomSpirerSiteBackend.Services.EmailService;
+using TomSpirerSiteBackend.Services.VaultService;
+using TomSpirerSiteBackend.Services.CacheService;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,25 +24,31 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddMvc().AddNewtonsoftJson();
-string jsonSchemaLicenseKey = builder.Configuration.GetSection("OpenAi")["JsonSchemaLicenseKey"] ?? throw new InvalidOperationException("JsonSchemaLicenseKey is not configured.");
-License.RegisterLicense(jsonSchemaLicenseKey);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
 
-builder.Services.Configure<OpenAiSettings>(builder.Configuration.GetSection("OpenAi"));
-builder.Services.Configure<PromptSettings>(builder.Configuration.GetSection("Prompt"));
-builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
-builder.Services.Configure<BlobStorageSettings>(builder.Configuration.GetSection("BlobStorage"));
 builder.Services.AddHttpClient<IChatCompletionService, OpenAiChatCompletion>();
 
+builder.Services.Configure<AgentSettings>(builder.Configuration.GetSection("AgentSettings"));
+
+builder.Services.AddSingleton<IVaultService, AzureKeyVaultService>();
 builder.Services.AddSingleton<IChatCompletionService, OpenAiChatCompletion>();
 builder.Services.AddSingleton<IEmailService, GmailService>();
 builder.Services.AddSingleton<IBlobService, AzureBlobService>();
+builder.Services.AddSingleton<ICacheService, MemoryCacheService>();
+
 builder.Services.AddScoped<IChatService, ChatService>();
 
 var app = builder.Build();
+
+IVaultService vaultService = app.Services.GetRequiredService<IVaultService>();
+string? licenseKey = await vaultService.GetSecretAsync(VaultSecretKey.JsonSchemaLicenseKey);
+if (!string.IsNullOrEmpty(licenseKey))
+{
+    License.RegisterLicense(licenseKey);
+}
 
 if (app.Environment.IsDevelopment())
 {

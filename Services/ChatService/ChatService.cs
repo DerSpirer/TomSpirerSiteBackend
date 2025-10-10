@@ -10,12 +10,12 @@ namespace TomSpirerSiteBackend.Services.ChatService;
 public class ChatService : IChatService
 {
     private readonly IChatCompletionService _chatCompletionService;
-    private readonly PromptSettings _promptSettings;
+    private readonly AgentSettings _agentSettings;
     
-    public ChatService(IChatCompletionService chatCompletionService, IOptions<PromptSettings> promptSettings)
+    public ChatService(IChatCompletionService chatCompletionService, IOptions<AgentSettings> agentSettings)
     {
         _chatCompletionService = chatCompletionService;
-        _promptSettings = promptSettings.Value;
+        _agentSettings = agentSettings.Value;
     }
 
     public async IAsyncEnumerable<Message> CreateResponseStream(GenerateResponseRequest request, [EnumeratorCancellation] CancellationToken cancellationToken)
@@ -26,10 +26,10 @@ public class ChatService : IChatService
             {
                 role = Message.Role.system,
                 content = 
-$@"{_promptSettings.Instructions}
+$@"{_agentSettings.Instructions}
 
 ```
-{_promptSettings.ProfessionalSummary}
+{_agentSettings.ProfessionalSummary}
 ```
 "
             },

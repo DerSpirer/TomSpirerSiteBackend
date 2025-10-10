@@ -1,42 +1,48 @@
+using System.Collections.Concurrent;
 using Azure;
 using Azure.Storage.Blobs;
-using Microsoft.Extensions.Options;
+using Azure.Storage.Blobs.Models;
 using TomSpirerSiteBackend.Models;
-using TomSpirerSiteBackend.Models.Config;
+using TomSpirerSiteBackend.Services.VaultService;
 
 namespace TomSpirerSiteBackend.Services.BlobService;
 
 public class AzureBlobService : IBlobService
 {
-    private readonly ILogger<AzureBlobService> _logger;
-    private readonly BlobServiceClient _blobServiceClient;
-    private readonly BlobContainerClient _containerClient;
-    private readonly BlobStorageSettings _settings;
+    private static ConcurrentDictionary<string, BlobContainerClient> _containerClients = new();
+    private static BlobServiceClient? _blobServiceClient;
+    private readonly SemaphoreSlim _initSemaphore = new(1, 1);
 
-    public AzureBlobService(ILogger<AzureBlobService> logger, IOptions<BlobStorageSettings> settings)
+    private readonly ILogger<AzureBlobService> _logger;
+    private readonly IVaultService _vaultService;
+
+    public AzureBlobService(ILogger<AzureBlobService> logger, IVaultService vaultService)
     {
         _logger = logger;
-        _settings = settings.Value;
-        
-        _blobServiceClient = new BlobServiceClient(_settings.ConnectionString);
-        _containerClient = _blobServiceClient.GetBlobContainerClient(_settings.ContainerName);
+        _vaultService = vaultService;
     }
 
-    public async Task<ServiceResult<Stream>> DownloadBlobAsync(string blobName)
+    public async Task<ServiceResult<Stream>> DownloadBlobAsync(string containerName, string blobName)
     {
         try
         {
-            var blobClient = _containerClient.GetBlobClient(blobName);
-            
+            var containerClient = await GetContainerClient(containerName);
+            if (containerClient == null)
+            {
+                return new ServiceResult<Stream> { success = false, message = "Failed to get Azure Blob Container Client" };
+            }
+
+            var blobClient = containerClient.GetBlobClient(blobName);
+
             if (!await blobClient.ExistsAsync())
             {
                 _logger.LogWarning($"Blob not found: {blobName}");
                 return new ServiceResult<Stream> { success = false, message = $"Blob not found: {blobName}" };
             }
 
-            var response = await blobClient.DownloadAsync();
+            BlobDownloadInfo response = await blobClient.DownloadAsync();
             _logger.LogInformation($"Successfully downloaded blob: {blobName}");
-            return new ServiceResult<Stream> { success = true, data = response.Value.Content };
+            return new ServiceResult<Stream> { success = true, data = response.Content };
         }
         catch (RequestFailedException ex)
         {
@@ -50,13 +56,18 @@ public class AzureBlobService : IBlobService
         }
     }
 
-    public async Task<ServiceResult<List<string>>> ListBlobsAsync(string? prefix = null)
+    public async Task<ServiceResult<List<string>>> ListBlobsAsync(string containerName, string? prefix = null)
     {
         try
         {
+            var containerClient = await GetContainerClient(containerName);
+            if (containerClient == null)
+            {
+                return new ServiceResult<List<string>> { success = false, message = "Failed to get Azure Blob Container Client" };
+            }
+
             var blobNames = new List<string>();
-            
-            await foreach (var blobItem in _containerClient.GetBlobsAsync(prefix: prefix))
+            await foreach (var blobItem in containerClient.GetBlobsAsync(prefix: prefix))
             {
                 blobNames.Add(blobItem.Name);
             }
@@ -74,6 +85,41 @@ public class AzureBlobService : IBlobService
             _logger.LogError(ex, "Error listing blobs");
             return new ServiceResult<List<string>> { success = false, message = $"An error occurred: {ex.Message}" };
         }
+    }
+    private async Task<BlobContainerClient?> GetContainerClient(string containerName)
+    {
+        // Initialize the blob service client if it is not already initialized
+        // Use a semaphore to ensure that only one thread initializes the blob service client
+        if (_blobServiceClient == null)
+        {
+            await _initSemaphore.WaitAsync();
+            try
+            {
+                if (_blobServiceClient == null)
+                {
+                    string? connectionString = await _vaultService.GetSecretAsync(VaultSecretKey.AzureStorageConnectionString);
+                    if (string.IsNullOrEmpty(connectionString))
+                    {
+                        return null;
+                    }
+                    _blobServiceClient = new BlobServiceClient(connectionString);
+                }
+            }
+            finally
+            {
+                _initSemaphore.Release();
+            }
+        }
+
+        // Create a container client if it is not already created
+        if (!_containerClients.TryGetValue(containerName, out BlobContainerClient? containerClient))
+        {
+            containerClient = _blobServiceClient.GetBlobContainerClient(containerName);
+            _containerClients.TryAdd(containerName, containerClient);
+        }
+
+        // Return the container client
+        return containerClient;
     }
 }
 

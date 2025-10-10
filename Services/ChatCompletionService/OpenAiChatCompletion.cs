@@ -1,22 +1,21 @@
 using TomSpirerSiteBackend.Models;
-using TomSpirerSiteBackend.Models.Config;
 using TomSpirerSiteBackend.Models.OpenAI;
 using TomSpirerSiteBackend.Utils;
 using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Text;
-using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
+using TomSpirerSiteBackend.Services.VaultService;
 
 namespace TomSpirerSiteBackend.Services.ChatCompletionService;
 
 public class OpenAiChatCompletion : IChatCompletionService
 {
+    private const string EP_URL = "https://api.openai.com/v1";
     private readonly ILogger<OpenAiChatCompletion> _logger;
     private readonly HttpClient _httpClient;
-    private readonly string _baseUrl = "https://api.openai.com/v1";
-    private readonly string _apiKey;
+    private readonly IVaultService _vaultService;
     private readonly JsonSerializerSettings _jsonSettings = new JsonSerializerSettings
     {
         NullValueHandling = NullValueHandling.Ignore,
@@ -26,11 +25,11 @@ public class OpenAiChatCompletion : IChatCompletionService
         }
     };
 
-    public OpenAiChatCompletion(ILogger<OpenAiChatCompletion> logger, HttpClient httpClient, IOptions<OpenAiSettings> openAiSettings)
+    public OpenAiChatCompletion(ILogger<OpenAiChatCompletion> logger, HttpClient httpClient, IVaultService vaultService)
     {
         _logger = logger;
         _httpClient = httpClient;
-        _apiKey = openAiSettings.Value.ApiKey;
+        _vaultService = vaultService;
     }
 
     public async IAsyncEnumerable<Message> CreateResponseStream(IEnumerable<Message> messages, IEnumerable<FunctionTool>? tools, [EnumeratorCancellation] CancellationToken cancellationToken)
@@ -48,17 +47,25 @@ public class OpenAiChatCompletion : IChatCompletionService
         HttpResponseMessage? response = null;
         try
         {
-            Uri uri = new Uri($"{_baseUrl}/chat/completions");
+            Uri uri = new Uri($"{EP_URL}/chat/completions");
             OpenAiChatCompletionRequest request = new OpenAiChatCompletionRequest
             {
                 messages = messages.ToList(),
                 tools = tools.Select(OpenAiChatCompletionRequest.Tool.FromFunctionTool).ToList(),
             };
+            
+            string? apiKey = await _vaultService.GetSecretAsync(VaultSecretKey.OpenAiApiKey);
+            if (string.IsNullOrEmpty(apiKey))
+            {
+                _logger.LogError("OpenAI API key is not configured");
+                throw new InvalidOperationException("OpenAI API key is not configured");
+            }
+            
             HttpRequestMessage requestMessage = new HttpRequestMessage(HttpMethod.Post, uri)
             {
                 Content = new StringContent(JsonConvert.SerializeObject(request, _jsonSettings), Encoding.UTF8, "application/json"),
                 Headers = {
-                    Authorization = new AuthenticationHeaderValue("Bearer", _apiKey)
+                    Authorization = new AuthenticationHeaderValue("Bearer", apiKey)
                 }
             };
 
