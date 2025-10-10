@@ -41,7 +41,7 @@ $@"{_agentSettings.Instructions}
             name = "leave_message",
             description = @"Use this tool to leave a message for Tom.
 If any information is missing, ask for it from the user.
-ONLY A SINGLE piece of information in a message, then let the user respond.",
+ASK FOR ONLY A SINGLE piece of information in your response message. Then the user will respond, and then you may ask for the next piece of information.",
             parameterType = typeof(LeaveMessageToolParams)
         };
         List<FunctionTool> tools =

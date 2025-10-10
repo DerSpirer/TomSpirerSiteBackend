@@ -6,18 +6,22 @@ using TomSpirerSiteBackend.Services.VaultService;
 
 namespace TomSpirerSiteBackend.Services.EmailService;
 
-public class GmailService : IEmailService
+public class GmailService(ILogger<GmailService> logger, IVaultService vaultService) : AsyncInitBase(logger), IEmailService
 {
-    private readonly ILogger<GmailService> _logger;
-    private readonly IVaultService _vaultService;
-    private readonly SemaphoreSlim _initSemaphore = new(1, 1);
+    private readonly ILogger<GmailService> _logger = logger;
+    private readonly IVaultService _vaultService = vaultService;
     private SmtpClient? _smtpClient;
     private string? _inboxEmail;
 
-    public GmailService(ILogger<GmailService> logger, IVaultService vaultService)
+    protected override async Task InitAsync()
     {
-        _logger = logger;
-        _vaultService = vaultService;
+        _inboxEmail = await _vaultService.GetSecretAsync(VaultSecretKey.GmailInboxEmail);
+        string? appPassword = await _vaultService.GetSecretAsync(VaultSecretKey.GmailAppPassword);
+        _smtpClient = new SmtpClient("smtp.gmail.com", 587)
+        {
+            EnableSsl = true,
+            Credentials = new NetworkCredential(_inboxEmail, appPassword)
+        };
     }
     public async Task<bool> LeaveMessage(LeaveMessageToolParams messageParams)
     {
@@ -25,17 +29,12 @@ public class GmailService : IEmailService
 
         try
         {
-            SmtpClient? smtpClient = await GetSmtpClient();
-            if (smtpClient == null || string.IsNullOrEmpty(_inboxEmail))
-            {
-                _logger.LogError("Failed to get SMTP client");
-                return false;
-            }
-
+            await AwaitInitAsync();
+            _logger.LogInformation($"Leaving message with parameters: {JsonConvert.SerializeObject(messageParams)}");
             using MailMessage mailMessage = new MailMessage
             {
-                From = new MailAddress(_inboxEmail),
-                To = { new MailAddress(_inboxEmail) },
+                From = new MailAddress(_inboxEmail!),
+                To = { new MailAddress(_inboxEmail!) },
                 Subject = $"New message from {messageParams.fromName} - {messageParams.subject}",
                 Body = @$"You have received a new message from {messageParams.fromName} ({messageParams.fromEmail}):
 
@@ -46,40 +45,30 @@ Message:
 {messageParams.body}",
                 IsBodyHtml = false,
             };
-            await smtpClient.SendMailAsync(mailMessage);
+            await _smtpClient!.SendMailAsync(mailMessage);
             success = true;
             _logger.LogInformation($"Email sent successfully with parameters: {JsonConvert.SerializeObject(messageParams)}");
         }
-        catch (Exception)
+        catch (Exception exception)
         {
-            _logger.LogError("Failed to send email");
+            _logger.LogError(exception, "Failed to send email");
         }
 
         return success;
     }
-    private async Task<SmtpClient?> GetSmtpClient()
+    
+    public override void Dispose()
     {
-        if (_smtpClient == null)
-        {
-            await _initSemaphore.WaitAsync();
-            try
-            {
-                if (_smtpClient == null)
-                {
-                    _inboxEmail = await _vaultService.GetSecretAsync(VaultSecretKey.GmailInboxEmail);
-                    string? appPassword = await _vaultService.GetSecretAsync(VaultSecretKey.GmailAppPassword);
-                    _smtpClient = new SmtpClient("smtp.gmail.com", 587)
-                    {
-                        EnableSsl = true,
-                        Credentials = new NetworkCredential(_inboxEmail, appPassword)
-                    };
-                }
-            }
-            finally
-            {
-                _initSemaphore.Release();
-            }
-        }
-        return _smtpClient;
+        _smtpClient?.Dispose();
+        _smtpClient = null;
+        _inboxEmail = null;
+        base.Dispose();
+    }
+    public override async ValueTask DisposeAsync()
+    {
+        _smtpClient?.Dispose();
+        _smtpClient = null;
+        _inboxEmail = null;
+        await base.DisposeAsync();
     }
 }
