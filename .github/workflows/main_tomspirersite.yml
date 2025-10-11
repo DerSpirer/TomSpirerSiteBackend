@@ -1,12 +1,7 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
-#
-# Required GitHub Secrets:
-# - AZUREAPPSERVICE_CLIENTID_4A9F0B94CB5042299AE93601A0484603
-# - AZUREAPPSERVICE_TENANTID_157FD4B77C374D898531F3BFBB0CBE3E
-# - AZUREAPPSERVICE_SUBSCRIPTIONID_C0EF56504482421FB6239284E8C75DED
 
-name: Build and deploy to Azure - TomSpirerSite Web App and Functions
+name: Build and deploy ASP.Net Core app to Azure Web App - TomSpirerSite
 
 on:
   push:
@@ -15,11 +10,9 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_WEBAPP_NAME: 'TomSpirerSite'
-  AZURE_FUNCTIONAPP_NAME: 'tom-spirer-site-functions'
+  WEBAPP_NAME: 'TomSpirerSite'
   DOTNET_VERSION: '9.x'
   WEBAPP_PROJECT_PATH: 'TomSpirerSiteBackend/TomSpirerSiteBackend.csproj'
-  FUNCTIONS_PROJECT_PATH: 'ServerlessFunctions/ServerlessFunctions.csproj'
 
 jobs:
   build:
@@ -33,27 +26,18 @@ jobs:
       - name: Set up .NET Core
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          dotnet-version: ${{env.DOTNET_VERSION}}
 
-      - name: Publish Web App
-        run: dotnet publish ${{ env.WEBAPP_PROJECT_PATH }} -c Release -o ./webapp
+      - name: dotnet publish
+        run: dotnet publish ${{env.WEBAPP_PROJECT_PATH}} -c Release -o "${{env.DOTNET_ROOT}}/webapp"
 
-      - name: Publish Functions
-        run: dotnet publish ${{ env.FUNCTIONS_PROJECT_PATH }} -c Release -o ./functions
-
-      - name: Upload Web App artifact
+      - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
-          name: webapp
-          path: ./webapp
+          name: .net-app
+          path: ${{env.DOTNET_ROOT}}/webapp
 
-      - name: Upload Functions artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: functions
-          path: ./functions
-
-  deploy-webapp:
+  deploy:
     runs-on: windows-latest
     needs: build
     permissions:
@@ -61,11 +45,10 @@ jobs:
       contents: read #This is required for actions/checkout
 
     steps:
-      - name: Download Web App artifact
+      - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
-          name: webapp
-          path: ./webapp-package
+          name: .net-app
       
       - name: Login to Azure
         uses: azure/login@v2
@@ -75,35 +58,10 @@ jobs:
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_C0EF56504482421FB6239284E8C75DED }}
 
       - name: Deploy to Azure Web App
+        id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          app-name: 'TomSpirerSite'
           slot-name: 'Production'
-          package: ./webapp-package
-
-  deploy-functions:
-    runs-on: windows-latest
-    needs: build
-    permissions:
-      id-token: write
-      contents: read
-
-    steps:
-      - name: Download Functions artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: functions
-          path: ./functions-package
-      
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_4A9F0B94CB5042299AE93601A0484603 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_157FD4B77C374D898531F3BFBB0CBE3E }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_C0EF56504482421FB6239284E8C75DED }}
-      
-      - name: Deploy to Azure Functions
-        uses: Azure/functions-action@v1
-        with:
-          app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
-          package: ./functions-package
+          package: .
+          
