@@ -36,7 +36,7 @@ public class AzureBlobService(ILogger<AzureBlobService> logger, IVaultService va
             _logger.LogInformation($"Downloading blob: {blobName}");
 
             // Check cache first
-            string cacheKey = $"blob:{blobName}";
+            string cacheKey = GetCacheKey(blobName);
             string? cachedContent = _cacheService.Get(cacheKey);
 
             if (cachedContent != null)
@@ -124,7 +124,6 @@ public class AzureBlobService(ILogger<AzureBlobService> logger, IVaultService va
         {
             return new ServiceResult<string> { success = false, message = result.message ?? "Failed to download prompt blob" };
         }
-
         using var reader = new StreamReader(result.data);
         string content = await reader.ReadToEndAsync();
 
