@@ -1,12 +1,294 @@
-# simple gitignore for dotnet webapi project
-bin/
-obj/
-*.user
+## Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+publish/
+
+## .NET Core / .NET
+project.lock.json
+project.fragment.lock.json
+artifacts/
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+ScaffoldingReadMe.txt
+
+## Visual Studio
+.vs/
 *.suo
+*.user
 *.userosscache
 *.sln.docstates
-.vs/
-Properties/launchSettings.json
-appsettings.Development.json
-appsettings.json
+*.rsuser
+ipch/
+*.aps
+*.ncb
+*.opendb
+*.opensdf
+*.sdf
+*.cachefile
+*.VC.db
+*.VC.VC.opendb
+*.psess
+*.vsp
+*.vspx
+*.sap
+*.e2e
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.VisualState.xml
+TestResult.xml
+nunit-*.xml
+[Dd]ebugPS/
+[Rr]eleasePS/
+dlldata.c
+BenchmarkDotNet.Artifacts/
+*.[Cc]ache
+!?*.[Cc]ache/
+StyleCopReport.xml
+*.coverage
+*.coveragexml
+coverage*.json
+coverage*.xml
+coverage*.info
+
+## Visual Studio build artifacts
+*_i.c
+*_p.c
+*_h.h
+*.ilk
+*.meta
+*.obj
+*.iobj
+*.pch
+*.pdb
+*.ipdb
+*.pgc
+*.pgd
+*.rsp
+*.sbr
+*.tlb
+*.tli
+*.tlh
+*.tmp
+*.tmp_proj
+*_wpftmp.csproj
+*.log
+*.tlog
+*.vspscc
+*.vssscc
+.builds
+*.pidb
+*.svclog
+*.scc
+*.binlog
+
+## Visual Studio Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+.history/
+
+## JetBrains Rider
 .idea/
+*.sln.iml
+*.DotSettings.user
+
+## ReSharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+
+## Other .NET tools
+_TeamCity*
+*.dotCover
+.axoCover/*
+!.axoCover/settings.json
+_NCrunch_*
+.*crunch*.local.xml
+nCrunchTemp_*
+*.mm.*
+AutoTest.Net/
+.sass-cache/
+[Ee]xpress/
+orleans.codegen.cs
+.localhistory/
+.vshistory/
+healthchecksdb
+MigrationBackup/
+.ionide/
+FodyWeavers.xsd
+.mfractor/
+.fake/
+.cr/personal
+OpenCover/
+ASALocalRun/
+*.nvuser
+
+## Azure Functions
+local.settings.json
+func-cli/
+.func-cli/
+
+## Azurite (Local Azure Storage Emulator)
+__azurite_db_blob__.json
+__azurite_db_blob_extent__.json
+__azurite_db_queue__.json
+__azurite_db_queue_extent__.json
+__azurite_db_table__.json
+__blobstorage__/
+__queuestorage__/
+__tablestorage__/
+AzuriteConfig
+
+## Publishing
+*.[Pp]ublish.xml
+*.azurePubxml
+*.pubxml
+*.publishproj
+PublishScripts/
+*.build.csdef
+csx/
+ecf/
+rcf/
+AppPackages/
+BundleArtifacts/
+Package.StoreAssociation.xml
+_pkginfo.txt
+*.appx
+*.appxbundle
+*.appxupload
+_Pvt_Extensions
+
+## Node.js (if using with frontend)
+node_modules/
+.ntvs_analysis.dat
+
+## Python (if using)
+__pycache__/
+*.pyc
+
+## Database files
+*.mdf
+*.ldf
+*.ndf
+
+## Business Intelligence projects
+*.rdl.data
+*.bim.layout
+*.bim_*.settings
+*.rptproj.rsuser
+*- [Bb]ackup.rdl
+*- [Bb]ackup ([0-9]).rdl
+*- [Bb]ackup ([0-9][0-9]).rdl
+*.rptproj.bak
+
+## Secrets and sensitive configuration
+appsettings.*.json
+!appsettings.json
+!appsettings.Development.json
+secrets.json
+*.key
+*.pfx
+*.p12
+*.cer
+*.jfm
+*.publishsettings
+
+## OS files
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# Linux
+.directory
+*~
+
+## Temporary files
+*.tmp
+*.temp
+*.swp
+*.*~
+temp/
+tmp/
+
+## Miscellaneous
+ClientBin/
+~$*
+*.dbmdl
+*.dbproj.schemaview
+ServiceFabricBackup/
+FakesAssemblies/
+*.GhostDoc.xml
+.paket/paket.exe
+paket-files/
+*.tss
+*.jmconfig
+*.btp.cs
+*.btm.cs
+*.odx.cs
+*.xsd.cs
+$tf/
+*.gpState
+_Chutzpah*
+DocProject/buildhelp/
+DocProject/Help/*.HxT
+DocProject/Help/*.HxC
+DocProject/Help/*.hhc
+DocProject/Help/*.hhk
+DocProject/Help/*.hhp
+DocProject/Help/Html2
+DocProject/Help/html
+**/*.HTMLClient/GeneratedArtifacts
+**/*.DesktopClient/GeneratedArtifacts
+**/*.DesktopClient/ModelManifest.xml
+**/*.Server/GeneratedArtifacts
+**/*.Server/ModelManifest.xml
+
+## Visual Studio 6 legacy
+*.plg
+*.opt
+*.vbw
+*.vbp
+*.dsw
+*.dsp
+
+## Windows Installer files
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+
+## Mono
+mono_crash.*
+
+## MSBuild
+msbuild.log
+msbuild.err
+msbuild.wrn
