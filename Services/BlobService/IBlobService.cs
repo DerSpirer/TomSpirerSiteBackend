@@ -4,7 +4,8 @@ namespace TomSpirerSiteBackend.Services.BlobService;
 
 public interface IBlobService
 {
-    Task<ServiceResult<Stream>> DownloadBlobAsync(string containerName, string blobName);
-    Task<ServiceResult<List<string>>> ListBlobsAsync(string containerName, string? prefix = null);
+    Task<ServiceResult<Stream>> DownloadBlobAsync(string blobName);
+    Task<ServiceResult<List<string>>> ListBlobsAsync(string? prefix = null);
+    Task<ServiceResult<string>> ReadPromptBlobAsync();
 }
 

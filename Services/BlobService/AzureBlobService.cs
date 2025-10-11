@@ -9,6 +9,8 @@ namespace TomSpirerSiteBackend.Services.BlobService;
 
 public class AzureBlobService(ILogger<AzureBlobService> logger, IVaultService vaultService) : AsyncInitBase(logger), IBlobService
 {
+    private const string ContainerName = "agent-kb-blobs";
+    
     private static readonly ConcurrentDictionary<string, BlobContainerClient> _containerClients = new();
     private static BlobServiceClient? _blobServiceClient;
 
@@ -24,11 +26,11 @@ public class AzureBlobService(ILogger<AzureBlobService> logger, IVaultService va
         }
         _blobServiceClient = new BlobServiceClient(connectionString);
     }
-    public async Task<ServiceResult<Stream>> DownloadBlobAsync(string containerName, string blobName)
+    public async Task<ServiceResult<Stream>> DownloadBlobAsync(string blobName)
     {
         try
         {
-            var containerClient = await GetContainerClient(containerName);
+            var containerClient = await GetContainerClient(ContainerName);
             if (containerClient == null)
             {
                 return new ServiceResult<Stream> { success = false, message = "Failed to get Azure Blob Container Client" };
@@ -58,11 +60,11 @@ public class AzureBlobService(ILogger<AzureBlobService> logger, IVaultService va
         }
     }
 
-    public async Task<ServiceResult<List<string>>> ListBlobsAsync(string containerName, string? prefix = null)
+    public async Task<ServiceResult<List<string>>> ListBlobsAsync(string? prefix = null)
     {
         try
         {
-            var containerClient = await GetContainerClient(containerName);
+            var containerClient = await GetContainerClient(ContainerName);
             if (containerClient == null)
             {
                 return new ServiceResult<List<string>> { success = false, message = "Failed to get Azure Blob Container Client" };
@@ -87,6 +89,19 @@ public class AzureBlobService(ILogger<AzureBlobService> logger, IVaultService va
             _logger.LogError(ex, "Error listing blobs");
             return new ServiceResult<List<string>> { success = false, message = $"An error occurred: {ex.Message}" };
         }
+    }
+    public async Task<ServiceResult<string>> ReadPromptBlobAsync()
+    {
+        const string promptBlobName = "Prompt.md";
+        var result = await DownloadBlobAsync(promptBlobName);
+        if (!result.success || result.data == null)
+        {
+            return new ServiceResult<string> { success = false, message = result.message ?? "Failed to download prompt blob" };
+        }
+
+        using var reader = new StreamReader(result.data);
+        string content = await reader.ReadToEndAsync();
+        return new ServiceResult<string> { success = true, data = content };
     }
     private async Task<BlobContainerClient?> GetContainerClient(string containerName)
     {
