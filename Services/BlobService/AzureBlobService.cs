@@ -3,19 +3,22 @@ using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using TomSpirerSiteBackend.Models;
+using TomSpirerSiteBackend.Services.CacheService;
 using TomSpirerSiteBackend.Services.VaultService;
 
 namespace TomSpirerSiteBackend.Services.BlobService;
 
-public class AzureBlobService(ILogger<AzureBlobService> logger, IVaultService vaultService) : AsyncInitBase(logger), IBlobService
+public class AzureBlobService(ILogger<AzureBlobService> logger, IVaultService vaultService, ICacheService cacheService) : AsyncInitBase(logger), IBlobService
 {
     private const string ContainerName = "agent-kb-blobs";
-    
+    private const int CacheExpirationMinutes = 60; // Cache blob contents for 1 hour
+
     private static readonly ConcurrentDictionary<string, BlobContainerClient> _containerClients = new();
     private static BlobServiceClient? _blobServiceClient;
 
     private readonly ILogger<AzureBlobService> _logger = logger;
     private readonly IVaultService _vaultService = vaultService;
+    private readonly ICacheService _cacheService = cacheService;
 
     protected override async Task InitAsync()
     {
@@ -30,9 +33,24 @@ public class AzureBlobService(ILogger<AzureBlobService> logger, IVaultService va
     {
         try
         {
+            _logger.LogInformation($"Downloading blob: {blobName}");
+
+            // Check cache first
+            string cacheKey = $"blob:{blobName}";
+            string? cachedContent = _cacheService.Get(cacheKey);
+
+            if (cachedContent != null)
+            {
+                _logger.LogInformation($"Retrieved blob from cache: {blobName}");
+                byte[] bytes = Convert.FromBase64String(cachedContent);
+                return new ServiceResult<Stream> { success = true, data = new MemoryStream(bytes) };
+            }
+
+            // Not in cache, download from blob storage
             var containerClient = await GetContainerClient(ContainerName);
             if (containerClient == null)
             {
+                _logger.LogError("Failed to get Azure Blob Container Client");
                 return new ServiceResult<Stream> { success = false, message = "Failed to get Azure Blob Container Client" };
             }
 
@@ -40,13 +58,23 @@ public class AzureBlobService(ILogger<AzureBlobService> logger, IVaultService va
 
             if (!await blobClient.ExistsAsync())
             {
-                _logger.LogWarning($"Blob not found: {blobName}");
+                _logger.LogError($"Blob not found: {blobName}");
                 return new ServiceResult<Stream> { success = false, message = $"Blob not found: {blobName}" };
             }
 
             BlobDownloadInfo response = await blobClient.DownloadAsync();
-            _logger.LogInformation($"Successfully downloaded blob: {blobName}");
-            return new ServiceResult<Stream> { success = true, data = response.Content };
+
+            // Read the content into memory for caching
+            using var memoryStream = new MemoryStream();
+            await response.Content.CopyToAsync(memoryStream);
+            byte[] contentBytes = memoryStream.ToArray();
+
+            // Cache the content as base64 string
+            string base64Content = Convert.ToBase64String(contentBytes);
+            _cacheService.Set(cacheKey, base64Content, TimeSpan.FromMinutes(CacheExpirationMinutes));
+
+            _logger.LogInformation($"Successfully downloaded and cached blob: {blobName}");
+            return new ServiceResult<Stream> { success = true, data = new MemoryStream(contentBytes) };
         }
         catch (RequestFailedException ex)
         {
@@ -64,9 +92,12 @@ public class AzureBlobService(ILogger<AzureBlobService> logger, IVaultService va
     {
         try
         {
+            _logger.LogInformation($"Listing blobs with prefix: {prefix ?? "none"}");
+
             var containerClient = await GetContainerClient(ContainerName);
             if (containerClient == null)
             {
+                _logger.LogError("Failed to get Azure Blob Container Client");
                 return new ServiceResult<List<string>> { success = false, message = "Failed to get Azure Blob Container Client" };
             }
 
@@ -79,15 +110,10 @@ public class AzureBlobService(ILogger<AzureBlobService> logger, IVaultService va
             _logger.LogInformation($"Successfully listed {blobNames.Count} blobs with prefix: {prefix ?? "none"}");
             return new ServiceResult<List<string>> { success = true, data = blobNames };
         }
-        catch (RequestFailedException ex)
+        catch (Exception exception)
         {
-            _logger.LogError(ex, "Azure Storage error listing blobs");
-            return new ServiceResult<List<string>> { success = false, message = $"Failed to list blobs: {ex.Message}" };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error listing blobs");
-            return new ServiceResult<List<string>> { success = false, message = $"An error occurred: {ex.Message}" };
+            _logger.LogError(exception, "Error listing blobs");
+            return new ServiceResult<List<string>> { success = false, message = $"An error occurred: {exception.Message}" };
         }
     }
     public async Task<ServiceResult<string>> ReadPromptBlobAsync()
@@ -101,9 +127,10 @@ public class AzureBlobService(ILogger<AzureBlobService> logger, IVaultService va
 
         using var reader = new StreamReader(result.data);
         string content = await reader.ReadToEndAsync();
+
         return new ServiceResult<string> { success = true, data = content };
     }
-    private async Task<BlobContainerClient?> GetContainerClient(string containerName)
+    private async Task<BlobContainerClient> GetContainerClient(string containerName = ContainerName)
     {
         await AwaitInitAsync();
         // Create a container client if it is not already created
@@ -116,5 +143,6 @@ public class AzureBlobService(ILogger<AzureBlobService> logger, IVaultService va
         // Return the container client
         return containerClient;
     }
+    private string GetCacheKey(string blobName) => $"blob:{blobName}";
 }
 
